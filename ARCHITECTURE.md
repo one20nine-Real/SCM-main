@@ -20,6 +20,12 @@
   │                                    → Supabase analytics.v_leadtime_gap
   │                                → components/analysis/*
   │
+  ├─ /analysis/stockout        → app/analysis/stockout/page.tsx
+  │                                → lib/scm.ts
+  │                                  → Supabase analytics.v_stockout_risk
+  │                                  → Supabase analytics.v_stockout_kpi
+  │                                → components/analysis/*
+  │
   └─ /api/health/supabase      → app/api/health/supabase/route.ts
                                  → 환경변수 설정 여부 확인
 ```
@@ -38,7 +44,7 @@
 
 | 폴더 | 기능 요약 | 주요 파일 |
 |---|---|---|
-| `app/` | Next.js 라우트, 전역 레이아웃, 전역 스타일, API Route | `page.tsx`, `layout.tsx`, `globals.css`, `analysis/leadtime/page.tsx`, `api/health/supabase/route.ts` |
+| `app/` | Next.js 라우트, 전역 레이아웃, 전역 스타일, API Route | `page.tsx`, `layout.tsx`, `globals.css`, `analysis/leadtime/page.tsx`, `analysis/stockout/page.tsx`, `api/health/supabase/route.ts` |
 | `components/` | 화면을 구성하는 재사용 React 컴포넌트 | `procurement-app.tsx`, `analysis/*`, `workflow/*` |
 | `components/analysis/` | 분석 화면의 프레임, 탭, 표 공통 껍데기 | `analysis-frame.tsx`, `analysis-tabs.tsx`, `data-table.tsx` |
 | `components/workflow/` | 6단계 월간 발주 업무 화면 | `dashboard-step.tsx`, `demand-step.tsx`, `supply-step.tsx`, `master-step.tsx`, `calculation-step.tsx`, `report-step.tsx`, `step-frame.tsx` |
@@ -62,6 +68,7 @@
 | `app/page.tsx` | `/` 진입점. `ProcurementApp`을 렌더링합니다. |
 | `app/globals.css` | 앱 전체의 레이아웃·워크플로우·분석 화면·카드·표·버튼 스타일을 정의하는 단일 전역 스타일 파일입니다. |
 | `app/analysis/leadtime/page.tsx` | `/analysis/leadtime` 분석 화면. `getLeadtimeGap()`을 호출해 공급처별 리드타임 격차 KPI와 표를 서버에서 렌더링합니다. `force-dynamic`으로 캐시된 결과 대신 최신 조회를 사용합니다. |
+| `app/analysis/stockout/page.tsx` | `/analysis/stockout` 분석 화면. `getStockoutRisk()`와 `getStockoutKpi()`를 병렬 호출해 KPI 카드와 품목별 소진위험 표를 서버에서 렌더링합니다. 상태와 계산 불가 사유는 DB 결과를 표시용 문구로 변환합니다. |
 | `app/api/health/supabase/route.ts` | `GET /api/health/supabase` API. Supabase URL과 publishable key가 설정됐는지만 확인하며 실제 DB 쿼리는 하지 않습니다. 미설정 시 503을 반환합니다. |
 
 현재 루트에는 `app/analysis/layout.tsx`가 없습니다. 분석 화면 공통 UI는 별도 레이아웃이 아니라 `components/analysis/analysis-frame.tsx`로 조합됩니다.
@@ -106,9 +113,9 @@
 
 | 파일 | 역할 |
 |---|---|
-| `lib/scm-model.ts` | `LeadtimeGap` 타입과 `normalizeLeadtimeGap()`을 정의합니다. 여러 후보 컬럼명(`supplier_name`, `supplier`, `법인` 등)을 순서대로 확인해 화면용 표준 타입으로 정규화합니다. 숫자 변환 실패와 null을 안전하게 처리합니다. |
+| `lib/scm-model.ts` | `LeadtimeGap`, `StockoutRisk`, `StockoutKpi` 타입과 각 정규화 함수를 정의합니다. 여러 후보 컬럼명을 순서대로 확인해 화면용 표준 타입으로 정규화하고, 숫자 변환 실패와 계산 불가 null을 안전하게 처리합니다. |
 | `lib/scm-model.test.ts` | SCM 모델과 정규화 함수의 Node 테스트 파일입니다. |
-| `lib/scm.ts` | 조회 함수의 집합입니다. `getLeadtimeGap()`은 `analytics.v_leadtime_gap`을 조회·정규화하고, `getStockoutKpi()`는 `analytics.v_stockout_kpi`에서 단일 행을 조회합니다. 조회 오류와 예외를 화면이 구분할 수 있는 반환 형태로 바꿉니다. |
+| `lib/scm.ts` | 조회 함수의 집합입니다. `getLeadtimeGap()`은 `analytics.v_leadtime_gap`, `getStockoutRisk()`는 `analytics.v_stockout_risk`, `getStockoutKpi()`는 `analytics.v_stockout_kpi`를 조회·정규화합니다. 조회 오류와 예외를 화면이 구분할 수 있는 반환 형태로 바꿉니다. |
 | `lib/supabase.ts` | 브라우저/서버 클라이언트와 환경변수 함수를 외부에 재-export하는 진입점입니다. |
 | `lib/supabase/env.ts` | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`를 읽고 검증합니다. secret key는 다루지 않습니다. |
 | `lib/supabase/server.ts` | 서버 컴포넌트와 서버 조회 함수가 사용하는 Supabase 클라이언트를 생성합니다. 세션 유지·자동 갱신을 끈 읽기 중심 설정입니다. |
@@ -220,6 +227,36 @@ Supabase Dashboard의 Data API Exposed schemas에 `core`, `analytics`가 빠지�
 
 페이지 안의 `gap` 색상 판정은 이미 계산된 `gap_days`의 표시 방식만 결정합니다. P80, 평균, 격차 자체를 다시 계산하지 않습니다.
 
+#### 소진위험 분석 구현과 재사용 경계
+
+소진위험 분석은 리드타임 분석과 같은 4계층 패턴을 사용하지만, 도메인 모델과 조회 뷰만 분리합니다.
+
+```text
+app/analysis/stockout/page.tsx
+  → Promise.all([getStockoutRisk(), getStockoutKpi()])
+    → createSupabaseServerClient()
+      → analytics.v_stockout_risk
+      → analytics.v_stockout_kpi
+    → normalizeStockoutRisk() / normalizeStockoutKpi()
+  → AnalysisFrame
+  → DataTable<StockoutRisk>
+```
+
+각 계층의 책임은 다음과 같습니다.
+
+| 계층 | 소진위험에서 담당하는 일 | 재사용 방식 |
+|---|---|---|
+| `lib/scm-model.ts` | DB 컬럼을 `StockoutRisk`, `StockoutKpi`로 정규화하고 `SAFE`, `CRITICAL`, `UNKNOWN` 및 사유 코드를 보존 | 다른 뷰의 컬럼명이 달라도 화면 타입을 안정적으로 유지 |
+| `lib/scm.ts` | 소진위험 상세 행과 KPI를 각각 조회하고 오류를 `{ rows/data, error }`로 반환 | 페이지가 Supabase SDK나 스키마명을 직접 알지 않도록 분리 |
+| `app/analysis/stockout/page.tsx` | KPI 카드·상태 표시·표 컬럼을 조합하고 화면 문구를 결정 | 분석별로 필요한 컬럼 정의만 새로 작성 |
+| `components/analysis/*` | 제목 프레임, 탭, 제네릭 표, 숫자 포맷 제공 | 리드타임과 모든 후속 분석 화면에서 공통 사용 |
+
+`getStockoutRisk()`와 `getStockoutKpi()`는 서로 독립적인 조회이므로 `Promise.all()`로 병렬 실행합니다. 한쪽 조회만 실패한 경우에도 성공한 쪽은 표시하고, 실패한 영역에만 오류를 표시할 수 있습니다. 상세 행이 빈 배열인 경우에는 단순히 숫자 0으로 바꾸지 않고, 뷰 또는 Exposed schemas 설정을 확인하도록 안내합니다.
+
+소진위험 페이지의 표는 `DataTable`의 `Column<StockoutRisk>` 정의만 교체합니다. 공통 표 컴포넌트는 컬럼의 `render` 함수를 호출하므로 상태 색상, 날짜 포맷, null 및 사유 표시를 분석 페이지가 독립적으로 제어할 수 있습니다. 향후 사용량 이상·입고 지연 분석도 동일하게 타입, 정규화 함수, 조회 함수, 페이지별 컬럼 정의만 추가하면 됩니다.
+
+계산 기준은 화면에 두지 않습니다. `available_qty`, `stockout_days`, `stockout_date`, `risk_status`는 `analytics` 뷰가 계산하고, 화면은 이미 계산된 값을 표시합니다. 사용량 또는 리드타임이 없어 계산할 수 없는 행은 `stockoutDays: null`로 유지하고 `NO_USAGE`, `NO_LEADTIME` 사유를 표시합니다.
+
 ## 5. 화면 상태와 의존관계
 
 ### 메인 워크플로우
@@ -276,7 +313,7 @@ npm run build
 
 ## 8. 현재 범위와 향후 확장 지점
 
-현재 구현된 것은 업무 플로우를 설명하는 UI 프로토타입과 리드타임 분석 조회입니다. README에 명시된 다음 단계인 SQLite 저장, 직접 입력·Excel/CSV 업로드, 실제 발주량 계산, 수동 조정 이력, Excel/PDF 다운로드는 아직 별도 서비스나 API로 구현되지 않았습니다.
+현재 구현된 것은 업무 플로우를 설명하는 UI 프로토타입과 리드타임·소진위험 분석 조회입니다. README에 명시된 다음 단계인 SQLite 저장, 직접 입력·Excel/CSV 업로드, 실제 발주량 계산, 수동 조정 이력, Excel/PDF 다운로드는 아직 별도 서비스나 API로 구현되지 않았습니다.
 
 향후 기능을 추가할 때는 다음 경계를 유지해야 합니다.
 
