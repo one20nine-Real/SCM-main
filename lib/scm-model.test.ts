@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeLeadtimeGap } from './scm-model.ts';
+import { normalizeLeadtimeGap, normalizeStockoutKpi, normalizeStockoutRisk } from './scm-model.ts';
 
 test('normalizes analytics leadtime rows into the screen model', () => {
   const result = normalizeLeadtimeGap({
@@ -51,5 +51,48 @@ test('reads the real analytics.v_leadtime_gap column names', () => {
     actualAverage: 28.4,
     p80: 33,
     gap: 8,
+  });
+});
+
+test('normalizes stockout risk rows and keeps unavailable calculations null', () => {
+  const result = normalizeStockoutRisk({
+    item_id: 'ITEM020',
+    item_name: '테스트 품목',
+    supplier_id: 'SUP001',
+    current_stock: 10,
+    inbound_qty: 5,
+    available_qty: 15,
+    daily_usage_avg: null,
+    planned_lead_time: 18,
+    stockout_days: null,
+    stockout_date: null,
+    risk_status: 'UNKNOWN',
+    reason: 'NO_USAGE',
+  });
+
+  assert.equal(result.itemId, 'ITEM020');
+  assert.equal(result.availableQty, 15);
+  assert.equal(result.stockoutDays, null);
+  assert.equal(result.reason, 'NO_USAGE');
+  assert.equal(result.riskStatus, 'UNKNOWN');
+});
+
+test('normalizes stockout KPI values from analytics view columns', () => {
+  const result = normalizeStockoutKpi({
+    n_items: 20,
+    n_critical: 3,
+    n_safe: 15,
+    n_unknown: 2,
+    n_within_30d: 4,
+    avg_stockout_days: 42.5,
+  });
+
+  assert.deepEqual(result, {
+    items: 20,
+    critical: 3,
+    safe: 15,
+    unknown: 2,
+    within30Days: 4,
+    averageStockoutDays: 42.5,
   });
 });
