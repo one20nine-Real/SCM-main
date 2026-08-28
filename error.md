@@ -85,3 +85,31 @@ where email = '관리자이메일@example.com';
 `validate.test.ts`와 `validate.ts`의 상대 import를 `.ts` 확장자로 명시했습니다. Next.js 빌드 설정의 `allowImportingTsExtensions`와도 일치합니다.
 
 추가로 `Date.parse`가 존재하지 않는 날짜를 자동 보정하는 문제를 확인해, 연·월·일을 직접 대조하는 엄격한 날짜 검증으로 보완했습니다.
+
+## 2026-08-28 — STEP 5 SQL 격리 테스트 정규식 불일치
+
+### 증상
+
+수요 프로파일 테스트가 LUMPY 분류 구문을 찾지 못해 실패했습니다.
+
+### 원인
+
+SQL은 앞의 세 조건을 분기한 뒤 남은 경우를 `else 'LUMPY'`로 처리하는데, 테스트가 존재하지 않는 명시적 `>=` 분기 문장을 기대했습니다.
+
+### 해결책
+
+테스트를 실제 SQL 구조에 맞춰 `else 'LUMPY'`를 검증하도록 수정했습니다. Demand Type 계산은 계속 SQL에서만 수행합니다.
+
+## 2026-08-28 — STEP 6·7 TypeScript 타입 검사 오류
+
+### 증상
+
+`npx tsc --noEmit`에서 관리자 Server Action 반환 타입, ES5 대상의 `Set`/`HTMLCollection` 순회, Forecast 정규화 helper 호출 오류가 발생했습니다.
+
+### 원인
+
+기존 프로젝트가 `target: es5`를 사용하고 있으며, Next.js form action은 `void | Promise<void>` 반환을 요구합니다. 또한 기존 숫자 helper는 행/컬럼 두 인자 형태였습니다.
+
+### 해결책
+
+Server Action은 결과 ID를 반환하지 않고 완료만 반환하도록 수정했고, `Array.from`으로 컬렉션을 변환했습니다. 숫자 helper는 단일 값과 행/컬럼 호출을 모두 지원하도록 보완했습니다.
