@@ -69,3 +69,19 @@ where email = '관리자이메일@example.com';
 - STEP 2 migration은 STEP 3 migration보다 먼저 실행해야 합니다.
 - Auth 사용자 계정을 먼저 만든 뒤 관리자 지정 쿼리를 실행합니다.
 - migration 실행 전에는 `core.app_user`에 직접 INSERT하지 않습니다.
+
+## 2026-08-28 — STEP 4 검증 테스트에서 모듈을 찾지 못함
+
+### 증상
+
+`npm test` 실행 시 `lib/import/validate.test.ts`에서 `Cannot find module .../lib/import/schema` 오류가 발생했습니다.
+
+### 원인
+
+프로젝트의 테스트 실행 방식은 Node가 TypeScript 파일을 직접 로드하므로, 새 Import 순수 모듈의 상대 import에 `.ts` 확장자가 필요합니다.
+
+### 해결책
+
+`validate.test.ts`와 `validate.ts`의 상대 import를 `.ts` 확장자로 명시했습니다. Next.js 빌드 설정의 `allowImportingTsExtensions`와도 일치합니다.
+
+추가로 `Date.parse`가 존재하지 않는 날짜를 자동 보정하는 문제를 확인해, 연·월·일을 직접 대조하는 엄격한 날짜 검증으로 보완했습니다.

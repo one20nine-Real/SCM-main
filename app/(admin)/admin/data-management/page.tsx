@@ -1,0 +1,3 @@
+import Link from 'next/link';
+export default function DataManagementPage() { return <div className="analysis-page"><div className="page-heading"><div><span className="eyebrow">ADMIN</span><h2>Data Management</h2><p className="muted">파일 적재, 적재 이력, 검증 오류를 관리합니다.</p></div></div><div className="grid grid-2 section"><Link className="card" href="/admin/data-management/upload"><h3>File Upload</h3><p className="muted">CSV/XLSX Preview, Mapping, Validation, Import</p></Link><Link className="card" href="/admin/data-management/history"><h3>Import History</h3><p className="muted">batch별 적재 결과와 오류를 확인합니다.</p></Link></div></div>; }
+
