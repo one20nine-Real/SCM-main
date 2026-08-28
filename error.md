@@ -1,5 +1,33 @@
 # 오류 및 해결 기록
 
+## 2026-08-28 — Vercel 서버 예외 Digest 609131802@E488
+
+### 증상
+
+`scm-main-cyan.vercel.app` 접속 시 Next.js의 서버 예외 화면과 digest `609131802@E488`가 표시됩니다.
+
+### 확인 결과
+
+- 비로그인 `GET /dashboard`는 정상적으로 `/login?next=%2Fdashboard`로 리다이렉트됩니다.
+- `GET /login`은 HTTP 200으로 렌더링됩니다.
+- 로그인 후 보호된 레이아웃은 `lib/auth.ts`의 `requireUser()`에서 `core.app_user`를 조회합니다.
+- `core.app_user` 조회 오류, 프로필 누락, 비활성 계정은 `forbidden()`으로 처리됩니다.
+
+### 원인 후보
+
+배포 Supabase 프로젝트에 STEP 2 migration이 적용되지 않았거나, 로그인한 사용자의 `core.app_user` 행이 없거나 비활성인 경우가 가장 유력합니다. 이 프로젝트에는 이전에 `42P01: relation "core.app_user" does not exist`가 기록되어 있습니다. Vercel Production 환경변수 누락도 로그인 전 middleware에서 같은 증상을 만들 수 있으므로 함께 확인해야 합니다.
+
+### 해결책
+
+1. Vercel의 Production 환경에 `NEXT_PUBLIC_SUPABASE_URL`과 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`를 등록합니다.
+2. Supabase SQL Editor에서 STEP 2부터 현재까지의 migration을 순서대로 실행합니다.
+3. 로그인 사용자의 `core.app_user` 행이 존재하는지, `active = true`인지 확인합니다.
+4. 권한이 없는 경우에는 서버 예외 대신 `app/forbidden.tsx`의 안내 화면이 표시되도록 Next.js `authInterrupts`를 활성화했습니다.
+
+### 적용 상태
+
+코드 수정 및 로컬 build 확인 후 재배포가 필요합니다. DB migration과 Vercel 환경변수는 배포 환경에서 수동 확인해야 합니다.
+
 ## 2026-08-27 — 소진위험 분석 메뉴가 웹에 보이지 않음
 
 ### 증상
