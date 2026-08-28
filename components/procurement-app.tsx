@@ -9,6 +9,7 @@ import SupplyStep from '@/components/workflow/supply-step';
 import MasterStep from '@/components/workflow/master-step';
 import CalculationStep from '@/components/workflow/calculation-step';
 import ReportStep from '@/components/workflow/report-step';
+import { userMenu } from '@/lib/menu';
 
 export type StepId = 'dashboard' | 'demand' | 'supply' | 'master' | 'calculation' | 'report';
 
@@ -62,7 +63,7 @@ export default function ProcurementApp() {
         </nav>
         <div className="nav-label nav-label-gap">ANALYSIS</div>
         <nav className="nav-list" aria-label="분석 화면">
-          <Link href="/analysis/leadtime" className="nav-button nav-link">
+          <Link href={userMenu.find((item) => item.kicker === 'ANALYSIS')?.href ?? '/dashboard'} className="nav-button nav-link">
             <span className="nav-number"><LineChart size={13} /></span>
             <span>분석 화면</span>
             <ChevronRight size={13} className="nav-link-arrow" />
