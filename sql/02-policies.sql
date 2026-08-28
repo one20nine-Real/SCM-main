@@ -18,3 +18,20 @@ create policy leadtime_plan_admin_mutation
   on core.leadtime_plan for all to authenticated using (core.is_admin()) with check (core.is_admin());
 create policy usage_profile_admin_mutation
   on core.usage_profile for all to authenticated using (core.is_admin()) with check (core.is_admin());
+
+drop policy if exists policy_config_select_authenticated on core.policy_config;
+create policy policy_config_select_authenticated on core.policy_config for select to authenticated using (true);
+drop policy if exists outlier_rule_select_authenticated on core.outlier_rule;
+create policy outlier_rule_select_authenticated on core.outlier_rule for select to authenticated using (true);
+drop policy if exists item_policy_select_authenticated on core.item_policy;
+create policy item_policy_select_authenticated on core.item_policy for select to authenticated using (true);
+drop policy if exists forecast_setting_select_authenticated on core.forecast_setting;
+create policy forecast_setting_select_authenticated on core.forecast_setting for select to authenticated using (true);
+drop policy if exists policy_config_admin_mutation on core.policy_config;
+create policy policy_config_admin_mutation on core.policy_config for all to authenticated using (core.is_admin()) with check (core.is_admin());
+drop policy if exists outlier_rule_admin_mutation on core.outlier_rule;
+create policy outlier_rule_admin_mutation on core.outlier_rule for all to authenticated using (core.is_admin()) with check (core.is_admin());
+drop policy if exists item_policy_admin_mutation on core.item_policy;
+create policy item_policy_admin_mutation on core.item_policy for all to authenticated using (core.is_admin()) with check (core.is_admin());
+drop policy if exists forecast_setting_admin_mutation on core.forecast_setting;
+create policy forecast_setting_admin_mutation on core.forecast_setting for all to authenticated using (core.is_admin()) with check (core.is_admin());

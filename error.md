@@ -25,3 +25,47 @@
 ### 적용 상태
 
 `components/analysis/analysis-frame.tsx`에 `AnalysisTabs`를 연결했습니다. 이제 `/analysis/leadtime`과 `/analysis/stockout`에서 두 분석 탭이 표시됩니다.
+
+## 2026-08-28 — core.app_user 테이블이 존재하지 않음
+
+### 증상
+
+Supabase SQL Editor에서 다음 쿼리를 실행할 때 `42P01: relation "core.app_user" does not exist` 오류가 발생합니다.
+
+```sql
+update core.app_user
+set role = 'ADMIN', active = true
+where email = '관리자이메일@example.com';
+```
+
+### 원인
+
+프로젝트 코드에는 STEP 2 migration이 있지만, 해당 migration이 실제 Supabase 프로젝트에 아직 실행되지 않았습니다. 따라서 `core` 스키마 또는 `core.app_user` 테이블이 DB에 생성되지 않은 상태입니다.
+
+### 해결책
+
+Supabase Dashboard → SQL Editor에서 다음 파일의 전체 내용을 먼저 실행합니다.
+
+```text
+supabase/migrations/20260828000200_step2_auth_rbac.sql
+```
+
+실행 후 테이블 생성 여부를 확인합니다.
+
+```sql
+select to_regclass('core.app_user') as app_user_table;
+```
+
+`core.app_user`가 반환되면 관리자 지정 쿼리를 다시 실행합니다.
+
+```sql
+update core.app_user
+set role = 'ADMIN', active = true
+where email = '관리자이메일@example.com';
+```
+
+### 주의
+
+- STEP 2 migration은 STEP 3 migration보다 먼저 실행해야 합니다.
+- Auth 사용자 계정을 먼저 만든 뒤 관리자 지정 쿼리를 실행합니다.
+- migration 실행 전에는 `core.app_user`에 직접 INSERT하지 않습니다.

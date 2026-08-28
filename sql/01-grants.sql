@@ -1,12 +1,16 @@
 -- STEP 2 기준 권한입니다. anon은 업무 스키마에 접근하지 못합니다.
 revoke all on schema core from anon;
 revoke all on schema analytics from anon;
+revoke all on schema raw from anon, authenticated;
 revoke all on all tables in schema core from anon;
 revoke all on all tables in schema analytics from anon;
+revoke all on all tables in schema raw from anon, authenticated;
 
 grant usage on schema core, analytics to authenticated;
 grant select on all tables in schema analytics to authenticated;
 grant select on all tables in schema core to authenticated;
+grant select, insert, update, delete on core.policy_config, core.outlier_rule, core.item_policy, core.forecast_setting to authenticated;
+grant select on analytics.v_data_coverage, analytics.v_forecast_settings to authenticated;
 
 alter default privileges in schema analytics grant select on tables to authenticated;
 alter default privileges in schema core grant select on tables to authenticated;

@@ -7,6 +7,7 @@ import {
   type StockoutKpi,
   type StockoutRisk,
 } from './scm-model';
+import { normalizeForecastSettings, type ForecastSettings } from './forecast-model';
 
 export async function getLeadtimeGap(): Promise<{ rows: LeadtimeGap[]; error: string | null }> {
   try {
@@ -38,5 +39,16 @@ export async function getStockoutKpi(): Promise<{ data: StockoutKpi | null; erro
     return { data: data ? normalizeStockoutKpi(data as Record<string, unknown>) : null, error: null };
   } catch (error) {
     return { data: null, error: error instanceof Error ? error.message : 'Supabase 조회에 실패했습니다.' };
+  }
+}
+
+export async function getForecastSettings(): Promise<{ data: ForecastSettings | null; error: string | null }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.schema('analytics').from('v_forecast_settings').select('*').maybeSingle();
+    if (error) return { data: null, error: error.message };
+    return { data: data ? normalizeForecastSettings(data as Record<string, unknown>) : null, error: null };
+  } catch (error) {
+    return { data: null, error: error instanceof Error ? error.message : 'Forecast 설정 조회에 실패했습니다.' };
   }
 }
