@@ -1,5 +1,33 @@
 # 오류 및 해결 기록
 
+## 2026-09-04 — Agent 실제 Tool role 불일치
+
+### 증상
+
+인증 사용자의 role은 `USER` 또는 `ADMIN`인데 Agent 실제 Tool 4개가 `roles: ['server']`로만 선언되어, 정상 질문도 오케스트레이터의 실행 직전 권한 검사에서 `TOOL_NOT_ALLOWED`가 됩니다.
+
+### 원인
+
+`lib/auth.ts`의 애플리케이션 role과 `lib/agent/tools.ts`의 내부용 role 표기가 일치하지 않았습니다.
+
+### 해결책
+
+재현 테스트를 추가한 뒤 실제 데이터 Tool 4개의 허용 role을 `['USER', 'ADMIN']`으로 통일했습니다. ADMIN 전용 Tool 이름을 USER가 호출하는 경우는 오케스트레이터의 role 재검사로 계속 거부됩니다.
+
+## 2026-09-04 — build와 tsc 동시 실행 시 `.next/types` race
+
+### 증상
+
+`npm.cmd run build`와 `npx.cmd tsc --noEmit`을 동시에 실행하면 `tsc`가 `.next/types/app/...` 파일을 찾지 못하는 `TS6053` 오류가 날 수 있습니다.
+
+### 원인
+
+`tsconfig.json`이 Next.js build가 생성하는 `.next/types/**/*.ts`를 include하는데, 두 명령이 동시에 실행되면서 TypeScript가 생성 전 파일을 읽었습니다.
+
+### 해결책
+
+검증 명령은 `npm.cmd test`와 build/tsc를 병렬 실행하지 않습니다. build가 끝난 뒤 `npx.cmd tsc --noEmit`을 단독 실행하면 통과합니다. 이는 소스 코드 결함이 아니라 검증 순서 문제입니다.
+
 ## 추가 사례 — npx.ps1 차단
 
 `npx tsc --noEmit`도 같은 PowerShell 실행 정책으로 `npx.ps1`이 차단될 수 있습니다.

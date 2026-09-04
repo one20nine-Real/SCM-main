@@ -2,6 +2,7 @@ export type MenuItem = { href: string; label: string; kicker?: string };
 
 export const userMenu: MenuItem[] = [
   { href: '/dashboard', label: '전체 현황', kicker: 'OVERVIEW' },
+  { href: '/agent', label: 'SCM Agent', kicker: 'AI AGENT' },
   { href: '/analysis/leadtime', label: '리드타임 격차', kicker: 'ANALYSIS' },
   { href: '/analysis/stockout', label: '재고 소진 위험', kicker: 'ANALYSIS' },
   { href: '/analysis/demand-profile', label: 'SKU 수요 프로파일', kicker: 'ANALYSIS' },
