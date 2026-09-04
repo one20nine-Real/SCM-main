@@ -1,5 +1,90 @@
 # 오류 및 해결 기록
 
+## 2026-09-04 — 구매추천 위험 상태 타입 불일치
+
+### 증상
+
+`npm run build`에서 `UNKNOWN` 위험 상태를 공통 `Badge` 컴포넌트에 전달할 수 없다는 TypeScript 오류가 발생했습니다.
+
+### 원인
+
+분석 모델은 데이터 부족 상태를 `UNKNOWN`으로 보존하지만, 화면 배지는 `SAFE`, `WARNING`, `CRITICAL`, `CALCULATION_UNAVAILABLE`만 지원합니다.
+
+### 해결책
+
+`lib/design-system.ts`에 `toBadgeStatus` 변환 함수를 추가해 지원되지 않는 상태를 `CALCULATION_UNAVAILABLE`로 표시하고, 구매추천 화면에서 변환 후 배지에 전달했습니다.
+
+## 2026-09-04 — Supabase analytics 스키마 권한 부족
+
+### 증상
+
+`GET /api/health/supabase`가 다음 응답을 반환했습니다.
+
+```text
+Supabase query failed: permission denied for schema analytics
+```
+
+### 원인
+
+공개 환경변수로 Supabase 프로젝트에는 접속했지만, 현재 API 역할이 `analytics` 스키마와 `v_stockout_kpi` 뷰를 조회할 권한이 없습니다.
+
+### 해결책
+
+Supabase Dashboard의 API Exposed schemas에 `analytics`와 `core`를 추가하고, 프로젝트의 `sql/01-grants.sql` 및 `sql/02-policies.sql` 권한 SQL을 적용합니다. 이후 schema cache가 갱신되면 endpoint가 `connected: true`를 반환합니다.
+
+## 2026-08-28 — migration 파일 경로를 SQL로 실행함
+
+### 증상
+
+Supabase SQL Editor에서 다음과 같은 오류가 발생합니다.
+
+```text
+42601: syntax error at or near "superbase"
+```
+
+### 원인
+
+`supabase/migrations/20260828000600_step6_step7_forecast_backtest.sql`은 실행할 SQL이 아니라 로컬 파일 경로입니다. 파일 경로만 SQL Editor에 입력하면 PostgreSQL 문법 오류가 발생합니다.
+
+### 해결책
+
+로컬 프로젝트의 해당 `.sql` 파일을 텍스트 편집기로 열고 파일 전체 내용을 복사한 뒤, Supabase SQL Editor에 붙여넣어 실행합니다. SQL Editor에는 `supabase/migrations/...` 경로를 입력하지 않습니다.
+
+## 2026-08-28 — analytics.v_model_config가 schema cache에 없음
+
+### 증상
+
+관리자 Forecast 화면의 Model Registry 조회에서 다음 오류가 표시됩니다.
+
+```text
+Could not find the table 'analytics.v_model_config' in the schema cache
+```
+
+### 원인
+
+Supabase REST API에 `analytics.v_model_config`를 직접 조회한 결과 `PGRST205`가 재현되었습니다. `supabase/migrations/20260828000600_step6_step7_forecast_backtest.sql`에는 해당 view 생성문이 있지만, 실제 Supabase 프로젝트에 migration이 실행되지 않았거나 실행 후 PostgREST schema cache가 갱신되지 않은 상태입니다.
+
+### 해결책
+
+Supabase SQL Editor에서 다음 migration 파일 전체를 실행합니다.
+
+```text
+supabase/migrations/20260828000600_step6_step7_forecast_backtest.sql
+```
+
+실행 후 다음 쿼리로 확인합니다.
+
+```sql
+select to_regclass('analytics.v_model_config') as model_config_view;
+select * from analytics.v_model_config limit 1;
+```
+
+`model_config_view`가 `analytics.v_model_config`로 반환되어야 합니다. 그래도 schema cache 오류가 계속되면 Supabase Dashboard의 Settings → API에서 schema cache reload/restart를 수행한 뒤 다시 조회합니다.
+
+### 주의
+
+이 문제는 Next.js 코드만 수정해서 해결할 수 없습니다. STEP 2부터 STEP 6까지 migration이 순서대로 적용되어야 하며, `core.model_config`가 먼저 생성되어야 합니다.
+
 ## 2026-08-28 — Vercel 서버 예외 Digest 609131802@E488
 
 ### 증상

@@ -9,6 +9,8 @@ import {
   normalizeDemandProfile, normalizeDemandProfileKpi, type DemandProfile, type DemandProfileKpi,
   normalizeModelConfig, normalizeForecastRun, normalizeModelPerformance, normalizeForecastComparison,
   type ModelConfig, type ForecastRun, type ModelPerformance, type ForecastComparison,
+  normalizeLeadtimePolicy, normalizeInventoryProjection, type LeadtimePolicy, type InventoryProjection,
+  normalizeSafetyStock, normalizePurchaseRecommendation, type SafetyStock, type PurchaseRecommendation,
 } from './scm-model';
 import { normalizeForecastSettings, type ForecastSettings } from './forecast-model';
 
@@ -43,6 +45,26 @@ export async function getStockoutKpi(): Promise<{ data: StockoutKpi | null; erro
   } catch (error) {
     return { data: null, error: error instanceof Error ? error.message : 'Supabase 조회에 실패했습니다.' };
   }
+}
+
+export async function getLeadtimePolicies(): Promise<{ rows: LeadtimePolicy[]; error: string | null }> {
+  try { const supabase = await createSupabaseServerClient(); const { data, error } = await supabase.schema('analytics').from('v_leadtime_policy').select('*').order('supplier_id').order('item_id'); if (error) return { rows: [], error: error.message }; return { rows: (data ?? []).map((row) => normalizeLeadtimePolicy(row as Record<string, unknown>)), error: null }; } catch (error) { return { rows: [], error: error instanceof Error ? error.message : 'Lead Time 조회에 실패했습니다.' }; }
+}
+
+export async function getInventoryProjection(): Promise<{ rows: InventoryProjection[]; error: string | null }> {
+  try { const supabase = await createSupabaseServerClient(); const { data, error } = await supabase.schema('analytics').from('v_inventory_projection').select('*').order('item_id').order('period'); if (error) return { rows: [], error: error.message }; return { rows: (data ?? []).map((row) => normalizeInventoryProjection(row as Record<string, unknown>)), error: null }; } catch (error) { return { rows: [], error: error instanceof Error ? error.message : 'Inventory Projection 조회에 실패했습니다.' }; }
+}
+export async function getInventoryProjectionForItem(itemId: string): Promise<{ rows: InventoryProjection[]; error: string | null }> {
+  try { const supabase = await createSupabaseServerClient(); const { data, error } = await supabase.schema('analytics').from('v_inventory_projection').select('*').eq('item_id', itemId).order('period'); if (error) return { rows: [], error: error.message }; return { rows: (data ?? []).map((row) => normalizeInventoryProjection(row as Record<string, unknown>)), error: null }; } catch (error) { return { rows: [], error: error instanceof Error ? error.message : 'Inventory Projection 조회에 실패했습니다.' }; }
+}
+export async function getSafetyStock(): Promise<{ rows: SafetyStock[]; error: string | null }> {
+  try { const supabase = await createSupabaseServerClient(); const { data, error } = await supabase.schema('analytics').from('v_safety_stock').select('*').order('item_id'); if (error) return { rows: [], error: error.message }; return { rows: (data ?? []).map((row) => normalizeSafetyStock(row as Record<string, unknown>)), error: null }; } catch (error) { return { rows: [], error: error instanceof Error ? error.message : 'Safety Stock 조회에 실패했습니다.' }; }
+}
+export async function getPurchaseRecommendations(): Promise<{ rows: PurchaseRecommendation[]; error: string | null }> {
+  try { const supabase = await createSupabaseServerClient(); const { data, error } = await supabase.schema('analytics').from('v_purchase_recommendation').select('*').order('item_id'); if (error) return { rows: [], error: error.message }; return { rows: (data ?? []).map((row) => normalizePurchaseRecommendation(row as Record<string, unknown>)), error: null }; } catch (error) { return { rows: [], error: error instanceof Error ? error.message : '발주추천 조회에 실패했습니다.' }; }
+}
+export async function getPurchaseRecommendation(itemId: string): Promise<{ data: PurchaseRecommendation | null; error: string | null }> {
+  try { const supabase = await createSupabaseServerClient(); const { data, error } = await supabase.schema('analytics').from('v_purchase_recommendation').select('*').eq('item_id', itemId).maybeSingle(); if (error) return { data: null, error: error.message }; return { data: data ? normalizePurchaseRecommendation(data as Record<string, unknown>) : null, error: null }; } catch (error) { return { data: null, error: error instanceof Error ? error.message : '발주추천 조회에 실패했습니다.' }; }
 }
 
 export async function getForecastSettings(): Promise<{ data: ForecastSettings | null; error: string | null }> {

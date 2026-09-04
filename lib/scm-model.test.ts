@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeLeadtimeGap, normalizeStockoutKpi, normalizeStockoutRisk } from './scm-model.ts';
+import { toBadgeStatus } from './design-system.ts';
 
 test('normalizes analytics leadtime rows into the screen model', () => {
   const result = normalizeLeadtimeGap({
@@ -95,4 +96,9 @@ test('normalizes stockout KPI values from analytics view columns', () => {
     within30Days: 4,
     averageStockoutDays: 42.5,
   });
+});
+
+test('converts unknown purchase recommendation risk to a supported badge status', () => {
+  assert.equal(toBadgeStatus('UNKNOWN'), 'CALCULATION_UNAVAILABLE');
+  assert.equal(toBadgeStatus('CRITICAL'), 'CRITICAL');
 });

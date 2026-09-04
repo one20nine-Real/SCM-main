@@ -19,13 +19,31 @@ export type StockoutRisk = {
   plannedLeadTime: number | null;
   stockoutDays: number | null;
   stockoutDate: string | null;
-  riskStatus: 'SAFE' | 'CRITICAL' | 'UNKNOWN';
-  reason: 'NO_USAGE' | 'NO_LEADTIME' | null;
+  riskStatus: 'SAFE' | 'WARNING' | 'CRITICAL' | 'CALCULATION_UNAVAILABLE' | 'UNKNOWN';
+  reason: string | null;
+  stockoutPeriod?: string | null;
+  monthsOfSupply?: number | null;
+};
+
+export type LeadtimePolicy = {
+  itemId: string; itemName: string; supplierId: string; supplierName: string; country: string;
+  samples: number | null; mean: number | null; p50: number | null; p80: number | null; p90: number | null;
+  itemConfirmed: number | null; supplierConfirmed: number | null; effective: number | null;
+  source: string; effectiveFrom: string | null; changedBy: string | null; reason: string | null;
+};
+
+export type InventoryProjection = {
+  itemId: string; itemName: string; supplierId: string; period: string;
+  beginningInventory: number | null; scheduledReceipt: number | null; confirmedSalesOrder: number | null;
+  softAllocation: number | null; forecastDemand: number | null; endingInventory: number | null;
+  stockoutPeriod: string | null; daysOfSupply: number | null; monthsOfSupply: number | null;
+  riskStatus: 'SAFE' | 'WARNING' | 'CRITICAL' | 'CALCULATION_UNAVAILABLE'; reasonCode: string | null;
 };
 
 export type StockoutKpi = {
   items: number;
   critical: number;
+  warning?: number;
   safe: number;
   unknown: number;
   within30Days: number;
@@ -44,6 +62,8 @@ export type ModelConfig = { modelId: string; modelName: string; family: string; 
 export type ForecastRun = { runId: string; status: 'RUNNING' | 'SUCCESS' | 'FAILED'; granularity: string; trainStart: string | null; trainEnd: string | null; horizon: number; nModels: number; nItems: number; nRows: number; dataSnapshotAt: string; isStale: boolean; startedAt: string; finishedAt: string | null; triggeredEmail: string | null; message: string | null };
 export type ModelPerformance = { backtestRunId: string; forecastRunId: string; modelId: string; modelVersion: string; itemId: string; nPeriods: number; wape: number | null; mape: number | null; bias: number | null; rmse: number | null; mae: number | null; baselineImprovement: number | null; rank: number | null; calculationStatus: string; reasonCode: string | null };
 export type ForecastComparison = { runId: string; modelId: string; itemId: string; period: string; modelVersion: string; predictedQty: number | null; p50: number | null; p80: number | null; p90: number | null; sigma: number | null; basis: string; actualQty: number | null };
+export type SafetyStock = { itemId: string; itemName: string; itemGrade: string | null; serviceLevel: number | null; zValue: number | null; expectedDemand: number | null; effectiveLeadtime: number | null; sigmaD: number | null; sigmaL: number | null; sigmaDlt: number | null; safetyStock: number | null; reasonCode: string | null; forecastModelId: string | null; forecastModelVersion: string | null };
+export type PurchaseRecommendation = { itemId: string; itemName: string; itemGrade: string | null; forecastQty: number | null; confirmedOrderQty: number | null; demandBasisQty: number | null; availableInventory: number | null; scheduledReceipt: number | null; safetyStock: number | null; effectiveLeadtime: number | null; stockoutDate: string | null; safetyBufferDays: number | null; requiredQty: number | null; moq: number | null; packSize: number | null; recommendedQty: number | null; recommendedOrderDate: string | null; isImmediate: boolean; isOverdue: boolean; riskStatus: StockoutRisk['riskStatus']; calculationStatus: 'CALCULATED' | 'NO_ORDER_REQUIRED' | 'CALCULATION_UNAVAILABLE'; reasonCode: string | null; forecastRunId: string | null; modelVersion: string | null; calculationTrace: Record<string, unknown> };
 
 function value(row: Record<string, unknown>, keys: string[]) {
   for (const key of keys) {
@@ -74,7 +94,7 @@ export function normalizeLeadtimeGap(row: Record<string, unknown>): LeadtimeGap 
 export function normalizeStockoutRisk(row: Record<string, unknown>): StockoutRisk {
   const status = String(value(row, ['risk_status', 'status', '위험상태']) ?? 'UNKNOWN').toUpperCase();
   const reasonValue = value(row, ['reason', '사유']);
-  const reason = reasonValue === 'NO_USAGE' || reasonValue === 'NO_LEADTIME' ? reasonValue : null;
+  const reason = reasonValue ? String(reasonValue) : null;
 
   return {
     itemId: String(value(row, ['item_id', 'item_code', '품목코드']) ?? '미정'),
@@ -87,9 +107,20 @@ export function normalizeStockoutRisk(row: Record<string, unknown>): StockoutRis
     plannedLeadTime: numberValue(row, ['planned_lead_time', '계획리드타임', '계획 리드타임']),
     stockoutDays: numberValue(row, ['stockout_days', '소진예상일수', '소진 예상일']),
     stockoutDate: value(row, ['stockout_date', '소진예상일', '소진 예상일자']) as string | null,
-    riskStatus: status === 'SAFE' || status === 'CRITICAL' ? status : 'UNKNOWN',
+    riskStatus: status === 'SAFE' || status === 'WARNING' || status === 'CRITICAL' || status === 'CALCULATION_UNAVAILABLE' || status === 'UNKNOWN' ? status : 'CALCULATION_UNAVAILABLE',
     reason,
+    stockoutPeriod: value(row, ['stockout_period', 'stockoutPeriod']) as string | null,
+    monthsOfSupply: numberValue(row, ['months_of_supply', 'monthsOfSupply']),
   };
+}
+
+export function normalizeLeadtimePolicy(row: Record<string, unknown>): LeadtimePolicy {
+  return { itemId: String(value(row, ['item_id']) ?? '미정'), itemName: String(value(row, ['item_name']) ?? '미정'), supplierId: String(value(row, ['supplier_id']) ?? '미정'), supplierName: String(value(row, ['supplier_name']) ?? '미정'), country: String(value(row, ['country']) ?? '미정'), samples: numberValue(row, ['n_samples']), mean: numberValue(row, ['mean_days']), p50: numberValue(row, ['p50_days']), p80: numberValue(row, ['p80_days']), p90: numberValue(row, ['p90_days']), itemConfirmed: numberValue(row, ['item_confirmed_lead_time']), supplierConfirmed: numberValue(row, ['supplier_confirmed_lead_time']), effective: numberValue(row, ['effective_lead_time']), source: String(value(row, ['effective_source']) ?? 'UNAVAILABLE'), effectiveFrom: value(row, ['effective_from']) as string | null, changedBy: value(row, ['changed_by']) as string | null, reason: value(row, ['confirmed_reason']) as string | null };
+}
+
+export function normalizeInventoryProjection(row: Record<string, unknown>): InventoryProjection {
+  const status = String(value(row, ['risk_status']) ?? 'CALCULATION_UNAVAILABLE').toUpperCase();
+  return { itemId: String(value(row, ['item_id']) ?? '미정'), itemName: String(value(row, ['item_name']) ?? '미정'), supplierId: String(value(row, ['supplier_id']) ?? '미정'), period: String(value(row, ['period']) ?? ''), beginningInventory: numberValue(row, ['beginning_inventory']), scheduledReceipt: numberValue(row, ['scheduled_receipts']), confirmedSalesOrder: numberValue(row, ['confirmed_sales_order']), softAllocation: numberValue(row, ['soft_allocation']), forecastDemand: numberValue(row, ['forecast_demand']), endingInventory: numberValue(row, ['ending_projected_inventory']), stockoutPeriod: value(row, ['stockout_period']) as string | null, daysOfSupply: numberValue(row, ['days_of_supply']), monthsOfSupply: numberValue(row, ['months_of_supply']), riskStatus: status === 'SAFE' || status === 'WARNING' || status === 'CRITICAL' ? status : 'CALCULATION_UNAVAILABLE', reasonCode: value(row, ['reason_code']) as string | null };
 }
 
 export function normalizeStockoutKpi(row: Record<string, unknown>): StockoutKpi {
@@ -115,3 +146,5 @@ export function normalizeModelConfig(row: Record<string, unknown>): ModelConfig 
 export function normalizeForecastRun(row: Record<string, unknown>): ForecastRun { return { runId: String(row.run_id ?? ''), status: String(row.status ?? 'FAILED') as ForecastRun['status'], granularity: String(row.granularity ?? ''), trainStart: row.train_start as string | null, trainEnd: row.train_end as string | null, horizon: numberValue(row.horizon) ?? 0, nModels: numberValue(row.n_models) ?? 0, nItems: numberValue(row.n_items) ?? 0, nRows: numberValue(row.n_rows) ?? 0, dataSnapshotAt: String(row.data_snapshot_at ?? ''), isStale: row.is_stale === true, startedAt: String(row.started_at ?? ''), finishedAt: row.finished_at as string | null, triggeredEmail: row.triggered_email as string | null, message: row.message as string | null }; }
 export function normalizeModelPerformance(row: Record<string, unknown>): ModelPerformance { return { backtestRunId: String(row.backtest_run_id ?? ''), forecastRunId: String(row.forecast_run_id ?? ''), modelId: String(row.model_id ?? ''), modelVersion: String(row.model_version ?? ''), itemId: String(row.item_id ?? ''), nPeriods: numberValue(row.n_periods) ?? 0, wape: numberValue(row.wape), mape: numberValue(row.mape), bias: numberValue(row.bias), rmse: numberValue(row.rmse), mae: numberValue(row.mae), baselineImprovement: numberValue(row.baseline_improvement), rank: numberValue(row.rank), calculationStatus: String(row.calculation_status ?? ''), reasonCode: row.reason_code as string | null }; }
 export function normalizeForecastComparison(row: Record<string, unknown>): ForecastComparison { return { runId: String(row.run_id ?? ''), modelId: String(row.model_id ?? ''), itemId: String(row.item_id ?? ''), period: String(row.period ?? ''), modelVersion: String(row.model_version ?? ''), predictedQty: numberValue(row.predicted_qty), p50: numberValue(row.p50), p80: numberValue(row.p80), p90: numberValue(row.p90), sigma: numberValue(row.sigma), basis: String(row.basis ?? ''), actualQty: numberValue(row.actual_qty) }; }
+export function normalizeSafetyStock(row: Record<string, unknown>): SafetyStock { return { itemId: String(value(row, ['item_id']) ?? '미정'), itemName: String(value(row, ['item_name']) ?? '미정'), itemGrade: value(row, ['item_grade']) as string | null, serviceLevel: numberValue(row, ['service_level']), zValue: numberValue(row, ['z_value']), expectedDemand: numberValue(row, ['expected_demand']), effectiveLeadtime: numberValue(row, ['effective_lead_time']), sigmaD: numberValue(row, ['sigma_d']), sigmaL: numberValue(row, ['sigma_l']), sigmaDlt: numberValue(row, ['sigma_dlt']), safetyStock: numberValue(row, ['safety_stock']), reasonCode: value(row, ['reason_code']) as string | null, forecastModelId: value(row, ['forecast_model_id']) as string | null, forecastModelVersion: value(row, ['forecast_model_version']) as string | null }; }
+export function normalizePurchaseRecommendation(row: Record<string, unknown>): PurchaseRecommendation { const status = String(value(row, ['risk_status']) ?? 'CALCULATION_UNAVAILABLE').toUpperCase(); const calculationStatus = String(value(row, ['calculation_status']) ?? 'CALCULATION_UNAVAILABLE').toUpperCase(); return { itemId: String(value(row, ['item_id']) ?? '미정'), itemName: String(value(row, ['item_name']) ?? '미정'), itemGrade: value(row, ['item_grade']) as string | null, forecastQty: numberValue(row, ['forecast_qty']), confirmedOrderQty: numberValue(row, ['confirmed_order_qty']), demandBasisQty: numberValue(row, ['demand_basis_qty']), availableInventory: numberValue(row, ['available_inventory']), scheduledReceipt: numberValue(row, ['scheduled_receipt']), safetyStock: numberValue(row, ['safety_stock']), effectiveLeadtime: numberValue(row, ['effective_leadtime']), stockoutDate: value(row, ['stockout_date']) as string | null, safetyBufferDays: numberValue(row, ['safety_buffer_days']), requiredQty: numberValue(row, ['required_qty']), moq: numberValue(row, ['moq']), packSize: numberValue(row, ['pack_size']), recommendedQty: numberValue(row, ['recommended_qty']), recommendedOrderDate: value(row, ['recommended_order_date']) as string | null, isImmediate: row.is_immediate === true, isOverdue: row.is_overdue === true, riskStatus: status === 'SAFE' || status === 'WARNING' || status === 'CRITICAL' || status === 'CALCULATION_UNAVAILABLE' ? status : 'CALCULATION_UNAVAILABLE', calculationStatus: calculationStatus === 'CALCULATED' || calculationStatus === 'NO_ORDER_REQUIRED' ? calculationStatus : 'CALCULATION_UNAVAILABLE', reasonCode: value(row, ['reason_code']) as string | null, forecastRunId: value(row, ['forecast_run_id']) as string | null, modelVersion: value(row, ['model_version']) as string | null, calculationTrace: (row.calculation_trace as Record<string, unknown> | null) ?? {} }; }

@@ -7,3 +7,8 @@ const statusLabels: Record<StatusCode, string> = {
 
 export function getStatusLabel(status: StatusCode) { return statusLabels[status]; }
 export function formatUnavailable(reasonCode: ReasonCode) { return `— + ${reasonCode}`; }
+export function toBadgeStatus(status: string): StatusCode {
+  return status === 'SAFE' || status === 'WARNING' || status === 'CRITICAL' || status === 'CALCULATION_UNAVAILABLE'
+    ? status
+    : 'CALCULATION_UNAVAILABLE';
+}
