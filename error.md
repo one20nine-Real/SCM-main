@@ -1,5 +1,37 @@
 # 오류 및 해결 기록
 
+## 2026-09-04 — PowerShell 실행 정책으로 npm.ps1 차단
+
+### 증상
+
+PowerShell에서 `npm test` 실행 시 다음 오류가 발생합니다.
+
+```text
+이 시스템에서 스크립트를 실행할 수 없으므로 C:\Program Files\nodejs\npm.ps1 파일을 로드할 수 없습니다.
+PSSecurityException: UnauthorizedAccess
+```
+
+### 원인
+
+PowerShell의 실행 정책이 `npm.ps1` 스크립트 실행을 차단하고 있습니다. Node.js 설치 문제나 프로젝트 테스트 오류가 아닙니다.
+
+### 해결책
+
+가장 간단한 우회 방법은 Windows 명령 스크립트를 직접 실행하는 것입니다.
+
+```powershell
+npm.cmd test
+npm.cmd run build
+```
+
+영구적으로 현재 사용자 정책을 완화하려면 PowerShell에서 다음을 실행할 수 있습니다.
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+정책 변경 후 PowerShell을 다시 열면 `npm test`를 사용할 수 있습니다. 회사 PC 정책으로 변경이 차단되면 `npm.cmd` 방식을 사용합니다.
+
 ## 2026-09-04 — 구매추천 위험 상태 타입 불일치
 
 ### 증상
