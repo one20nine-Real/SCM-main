@@ -1,5 +1,15 @@
 # 오류 및 해결 기록
 
+## 추가 사례 — npx.ps1 차단
+
+`npx tsc --noEmit`도 같은 PowerShell 실행 정책으로 `npx.ps1`이 차단될 수 있습니다.
+
+```powershell
+npx.cmd tsc --noEmit
+```
+
+검증 결과 이 저장소에서는 TypeScript 검사가 오류 없이 통과했습니다.
+
 ## 2026-09-04 — PowerShell 실행 정책으로 npm.ps1 차단
 
 ### 증상
